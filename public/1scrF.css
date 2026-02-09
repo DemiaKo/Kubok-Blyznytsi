@@ -1,0 +1,196 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background-color: #272A33;
+    font-family: 'Arial', sans-serif;
+    color: #ffffff;
+    line-height: 1.4;
+    font-size: 25px;
+    display: flex;
+    min-height: 100vh;
+    align-items: center;
+    justify-content: center;
+}
+
+.background-overlay {
+    opacity: 0.4;
+    background-image: url('chort.png');
+    background-repeat: no-repeat;
+    background-position: center top 100px;
+    background-size: 900px;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: -1;
+}
+
+.container-clearfix {
+    margin: 0;
+    padding: 30px 50px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.title {
+    width: 100%;
+    text-align: center;
+    color: #edc41d;
+    font-size: 30px;
+    margin-bottom: 15px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+.left-column {
+    width: 45%;
+    padding-right: 8px;
+    box-sizing: border-box;
+}
+
+.right-column {
+    width: 45%;
+    padding-left: 8px;
+    box-sizing: border-box;
+}
+
+/* New center column for U-33 table */
+.center-column {
+    width: 45%;
+    margin: 0 auto;
+    box-sizing: border-box;
+    clear: both;
+}
+
+.tournament-table {
+    background-color: rgba(39, 42, 51, 0.85);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 25px;
+    width: 100%;
+    box-shadow: 0 3px 5px rgba(0, 0, 0, 0.1);
+}
+
+.age-category {
+    color: #edc41d;
+    text-align: center;
+    font-size: 30px;
+    margin-bottom: 8px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid #edc41d;
+}
+
+.match-schedule {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+}
+
+.match-schedule th {
+    padding: 10px 5px;
+    text-align: center;
+    white-space: nowrap;
+    background-color: rgba(237, 196, 29, 0.2);
+    font-weight: bold;
+    text-transform: uppercase;
+    font-size: 22px;
+}
+
+.match-schedule td {
+    text-align: center;
+    padding: 5px 3px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+tr:nth-child(even) {
+    background-color: rgba(255, 255, 255, 0.03);
+}
+
+tr:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+    transition: background-color 0.3s ease;
+}
+
+.th-team-name {
+    width: 200px;
+}
+
+.match-time {
+    font-weight: 100;
+    width: 120px;
+    font-size: 22px;
+}
+
+.match-vs {
+    width: 10px;
+}
+
+.match-score {
+    width: 30px;
+}
+
+.match-group {
+    width: 60px;
+}
+
+.match-field {
+    width: 40px;
+}
+
+.team-name {
+    width: 150px;
+    text-align: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Additional legacy support for the old class names from 1scrF.css */
+.ptable table {
+    margin: 30px auto;
+    border-collapse: collapse;
+    width: 100%;
+}
+
+.ptable {
+    margin: 0px 0% 30px 0%;
+}
+
+.wpos {
+    text-align: center;
+    white-space: nowrap;
+}
+
+.headin {
+    text-align: center;
+    text-decoration: none;
+    color: #edc41d;
+    margin: 10px;
+    font-size: 30px;
+    display: block;
+}
+
+@media (max-width: 1024px) {
+    .left-column, .right-column, .center-column {
+        width: 100%;
+        float: none;
+        padding: 0;
+    }
+    
+    .match-table {
+        overflow-x: auto;
+        display: block;
+    }
+    
+    .container-clearfix {
+        padding: 10px;
+    }
+}

@@ -1,51 +1,41 @@
-// Function to load all table data with a single API request
-function loadTableData(tableId, endpoint, ageGroup) {
-    const table = document.getElementById(tableId);
-    if (!table) return;
-    
-    const rows = table.getElementsByTagName('tbody')[0].rows;
-    const rowCount = rows.length;
-    
-    // Send a single request for all rows in this table
-    fetch(`/api/table-data/${endpoint}/${ageGroup}/${rowCount}`)
-      .then(response => response.json())
-      .then(data => {
-        // Update all rows at once with the returned data
-        data.rows.forEach((rowData, index) => {
-          rows[index].cells[0].textContent = rowData.time;
-          rows[index].cells[1].textContent = rowData.team1;
-          rows[index].cells[2].textContent = rowData.score;
-          rows[index].cells[3].textContent = rowData.team2;
-          rows[index].cells[4].textContent = rowData.field;
-          rows[index].cells[5].textContent = rowData.last;
-        });
-        console.log(`Loaded all data for ${tableId} in a single request`);
-      })
-      .catch(error => {
-        console.error(`Error loading data for ${tableId}:`, error);
-      });
-  }
+function populateTable(tableId, rowsData) {
+  const table = document.getElementById(tableId);
+  if (!table || !rowsData) return;
   
-  document.addEventListener('DOMContentLoaded', function() {
-    // First check if we need to redirect
-    fetch(`/api/table-data/BeforeFinal/Y/1`)
-      .then(response => response.json())
-      .then(data => {
-        if (data.flag != 'Y') {
-          localStorage.setItem('1scr', 'B');
-          window.location = 'index.html';
-          return; // Stop execution if redirecting
-        }
-        
-        // Load all tables at once with single requests
-        loadTableData('U-14', 'AfterFinal', '14');
-        loadTableData('U-17', 'AfterFinal', '17');
-        loadTableData('U-66', 'AfterFinal', '66');
-      })
-      .catch(error => {
-        console.error('Error checking redirect flag:', error);
-      });
-      
-  //Set the timeout for page redirection
-  setTimeout(() => {window.location = '2scr.html';}, 20000);
+  const tbody = table.getElementsByTagName('tbody')[0];
+  const tableRows = tbody.rows;
+  
+  rowsData.forEach((data, index) => {
+    if (index < tableRows.length) {
+      const cells = tableRows[index].cells;
+      cells[0].textContent = data.time;
+      cells[1].textContent = data.team1;
+      cells[2].textContent = data.score;
+      cells[3].textContent = data.team2;
+      cells[4].textContent = data.field;
+      // В AfterFinal є додаткова колонка Last
+      if (cells[5]) cells[5].textContent = data.last;
+    }
   });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  fetch('/api/view/AfterFinal')
+    .then(res => res.json())
+    .then(data => {
+      // Логіка: якщо прапор НЕ Y, повертаємось на index.html
+      if (data.flag !== 'Y') {
+        localStorage.setItem('1scr', 'B');
+        window.location = 'index.html';
+        return;
+      }
+
+      // Заповнюємо таблиці
+      populateTable('U-14', data.tables['14']);
+      populateTable('U-17', data.tables['17']); // Тут у вас в HTML id таблиці U-17
+      populateTable('U-66', data.tables['66']);
+    })
+    .catch(err => console.error(err));
+
+  setTimeout(() => { window.location = '2scr.html'; }, 20000);
+});

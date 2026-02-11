@@ -1,44 +1,40 @@
-// Function to load SecScreen table data with a single API request
-function loadSecScreenTableData(tableId, endpoint, ageGroup) {
+function populateSecTable(tableId, rowsData) {
   const table = document.getElementById(tableId);
-  if (!table) return;
+  if (!table || !rowsData) return;
   
-  const rows = table.getElementsByTagName('tbody')[0].rows;
-  const rowCount = rows.length;
+  const tbody = table.getElementsByTagName('tbody')[0];
+  const tableRows = tbody.rows;
   
-  // Send a single request for all rows in this table
-  fetch(`/api/table-data/${endpoint}/${ageGroup}/${rowCount}`)
-    .then(response => response.json())
-    .then(data => {
-      // Update all rows at once with the returned data
-      data.rows.forEach((rowData, index) => {
-        rows[index].cells[1].textContent = rowData.time;
-        rows[index].cells[2].textContent = rowData.team1;
-        rows[index].cells[3].textContent = rowData.score;
-        rows[index].cells[4].textContent = rowData.score2;
-        rows[index].cells[5].textContent = rowData.team2;
-        rows[index].cells[6].textContent = rowData.field;
-      });
-      console.log(`Loaded all data for ${tableId} in a single request`);
-    })
-    .catch(error => {
-      console.error(`Error loading data for ${tableId}:`, error);
-    });
+  rowsData.forEach((data, index) => {
+    if (index < tableRows.length) {
+      const cells = tableRows[index].cells;
+      // У SecScreen інша структура колонок
+      cells[1].textContent = data.time;
+      cells[2].textContent = data.team1;
+      cells[3].textContent = data.score;
+      cells[4].textContent = data.score2;
+      cells[5].textContent = data.team2;
+      cells[6].textContent = data.field;
+    }
+  });
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-  var loc = localStorage.getItem("1scr");
+  const loc = localStorage.getItem("1scr");
+
+  fetch('/api/view/SecScreen')
+    .then(res => res.json())
+    .then(data => {
+      populateSecTable('U-14', data.tables['14']);
+      populateSecTable('U-17-A', data.tables['17A']);
+      populateSecTable('U-17-B', data.tables['17B']);
+      populateSecTable('U-66', data.tables['66']);
+    })
+    .catch(err => console.error(err));
   
-  // Load all tables at once with single requests
-  loadSecScreenTableData('U-14', 'SecScreen', '14');
-  loadSecScreenTableData('U-17-A', 'SecScreen', '17A');
-  loadSecScreenTableData('U-17-B', 'SecScreen', '17B');
-  loadSecScreenTableData('U-66', 'SecScreen', '66');
-  
-  // Set the timeout for page redirection based on the stored value
   if (loc == "B") {
-    setTimeout(() => {window.location = 'index.html';}, 20000);
+    setTimeout(() => { window.location = 'index.html'; }, 20000);
   } else if (loc == "F") {
-    setTimeout(() => {window.location = '1scrF.html';}, 20000);
+    setTimeout(() => { window.location = '1scrF.html'; }, 20000);
   }
 });

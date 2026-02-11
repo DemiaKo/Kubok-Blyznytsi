@@ -1,54 +1,48 @@
-// Function to load all table data with a single API request
-function loadTableData(tableId, endpoint, ageGroup) {
+// Оптимізована функція для заповнення таблиці даними з пам'яті
+function populateTable(tableId, rowsData) {
   const table = document.getElementById(tableId);
-  if (!table) return;
+  if (!table || !rowsData) return;
   
-  const rows = table.getElementsByTagName('tbody')[0].rows;
-  const rowCount = rows.length;
+  const tbody = table.getElementsByTagName('tbody')[0];
+  const tableRows = tbody.rows;
   
-  // Send a single request for all rows in this table
-  fetch(`/api/table-data/${endpoint}/${ageGroup}/${rowCount}`)
-    .then(response => response.json())
-    .then(data => {
-      // Update all rows at once with the returned data
-      data.rows.forEach((rowData, index) => {
-        rows[index].cells[0].textContent = rowData.time;
-        rows[index].cells[1].textContent = rowData.team1;
-        rows[index].cells[2].textContent = rowData.score;
-        rows[index].cells[3].textContent = rowData.team2;
-        rows[index].cells[4].textContent = rowData.field;
-      });
-      console.log(`Loaded all data for ${tableId} in a single request`);
-    })
-    .catch(error => {
-      console.error(`Error loading data for ${tableId}:`, error);
-    });
+  // Очищаємо або оновлюємо існуючі рядки
+  rowsData.forEach((data, index) => {
+    if (index < tableRows.length) {
+      const cells = tableRows[index].cells;
+      cells[0].textContent = data.time;
+      cells[1].textContent = data.team1;
+      cells[2].textContent = data.score;
+      cells[3].textContent = data.team2;
+      cells[4].textContent = data.field;
+    }
+  });
 }
 
-// Store screen type
-localStorage.setItem('1scr', 'B');
-
 document.addEventListener('DOMContentLoaded', function() {
-  // First check if we need to redirect based on the Y flag
-  fetch(`/api/table-data/BeforeFinal/Y/1`)
-    .then(response => response.json())
+  localStorage.setItem('1scr', 'B');
+
+  // ЄДИНИЙ запит на сервер
+  fetch('/api/view/BeforeFinal')
+    .then(res => res.json())
     .then(data => {
-      if (data.flag == 'Y') {
+      // 1. Перевірка прапора
+      if (data.flag === 'Y') {
         localStorage.setItem('1scr', 'F');
         window.location = '1scrF.html';
-        return; // Stop execution if redirecting
+        return;
       }
+
+      // 2. Заповнення всіх таблиць одразу
+      populateTable('U-14', data.tables['14']);
+      populateTable('U-17-A', data.tables['17A']);
+      populateTable('U-17-B', data.tables['17B']);
+      populateTable('U-66', data.tables['66']);
       
-      // Load all tables at once with single requests
-      loadTableData('U-14', 'BeforeFinal', '14');
-      loadTableData('U-17-A', 'BeforeFinal', '17A');
-      loadTableData('U-17-B', 'BeforeFinal', '17B');
-      loadTableData('U-66', 'BeforeFinal', '66');
+      console.log('All data loaded via single batch request');
     })
-    .catch(error => {
-      console.error('Error checking redirect flag:', error);
-    });
-    
-  // Set the timeout for page redirection
- setTimeout(() => {window.location = '2scr.html';}, 20000);
+    .catch(err => console.error(err));
+
+  // Переадресація
+  setTimeout(() => { window.location = '2scr.html'; }, 20000);
 });

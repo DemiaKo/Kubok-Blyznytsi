@@ -1,155 +1,188 @@
+// api/index.js
 const express = require('express');
 const path = require('path');
-const XLSX = require('xlsx');
+const { google } = require('googleapis');
+require('dotenv').config();
+
 const app = express();
-const letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X'];
 
-// Serve static files from the current directory
-app.use(express.static(path.join(__dirname, 'public')));
+// Дозволяємо CORS, щоб фронтенд міг звертатися до API
+const cors = require('cors');
+app.use(cors());
 
-// Function to get Excel data for a specific row
-function getExcelData(rowNum, sh, t, col) {
+const publicPath = path.join(__dirname, '../');
+app.use(express.static(publicPath));
+app.get('/', (req, res) => {
+  res.sendFile(path.join(publicPath, 'index.html'));
+});
+
+// Налаштування доступу до Google Sheets
+const auth = new google.auth.GoogleAuth({
+  credentials: {
+    client_email: process.env.GOOGLE_CLIENT_EMAIL,
+    private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'), // Фікс для переносів рядків у Vercel
+  },
+  scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
+});
+
+const sheets = google.sheets({ version: 'v4', auth });
+const SPREADSHEET_ID = process.env.SPREADSHEET_ID;
+
+// Функція для отримання даних з кешу (або API)
+// Google API повільніше локального файлу, тому краще брати діапазон
+async function getSheetData(range) {
   try {
-    const filePath = path.join(__dirname, 'kb.xlsx');
-    const workbook = XLSX.readFile(filePath);
-    const worksheet = workbook.Sheets[sh];
-    
-    if (col == "Y") {
-      const cell = worksheet['AA1'] ? worksheet['AA1'].v : '';
-      return cell;
-    } else if (t == "c1") {
-      const cell = worksheet[letters[col] + rowNum] ? worksheet[letters[col] + rowNum].v : '';
-      return cell;
-    } else if (t == "c2") {
-      const cell = worksheet[letters[col+1] + rowNum] ? worksheet[letters[col+1] + rowNum].v : '';
-      return cell;
-    } else if (t == "c5") {
-      const cell = worksheet[letters[col+4] + rowNum] ? worksheet[letters[col+4] + rowNum].v : '';
-      return cell;
-    } else if (t == "c6") {
-      const cell = worksheet[letters[col+5] + rowNum] ? worksheet[letters[col+5] + rowNum].v : '';
-      return cell;
-    } else if (t == "c7") {
-      const cell = worksheet[letters[col+6] + rowNum] ? worksheet[letters[col+6] + rowNum].v : '';
-      return cell;
-    } else if (t == "c3") {
-      const cell = worksheet[letters[col+2] + rowNum] ? worksheet[letters[col+2] + rowNum].v : '';
-      return cell;
-    } else if (t == "c4") {
-      const cell = worksheet[letters[col+3] + rowNum] ? worksheet[letters[col+3] + rowNum].v : '';
-      return cell;
-    } else if (t == "c4:c5") {
-      const cellA = worksheet[letters[col+3] + rowNum] ? worksheet[letters[col+3] + rowNum].v : '';
-      const cellB = worksheet[letters[col+4] + rowNum] ? worksheet[letters[col+4] + rowNum].v : '';
-      
-      const combinedValue = cellA + " : " + cellB;
-      return combinedValue; 
-    } else if (t == "c3:c4") {
-      const cellA = worksheet[letters[col+2] + rowNum] ? worksheet[letters[col+2] + rowNum].v : '';
-      const cellB = worksheet[letters[col+3] + rowNum] ? worksheet[letters[col+3] + rowNum].v : '';
-      
-      const combinedValue = cellA + " : " + cellB;
-      return combinedValue;
-    }
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SPREADSHEET_ID,
+      range: range, // Наприклад: "Sheet1!A1:Z100"
+    });
+    return response.data.values || [];
   } catch (error) {
-    console.error('Error reading Excel file:', error);
-    return 'Error reading Excel file';
+    console.error('Google Sheets API Error:', error);
+    return null;
   }
 }
 
+// Допоміжна функція для безпечного отримання значення з масиву
+// rowIdx - індекс рядка (0-based), colIdx - індекс колонки (0-based, A=0, B=1)
+function getCellValue(data, rowIdx, colIdx) {
+  if (data && data[rowIdx] && data[rowIdx][colIdx] !== undefined) {
+    return data[rowIdx][colIdx];
+  }
+  return '';
+}
 
-// NEW ENDPOINT: Get all data for a table in a single request
-app.get('/api/table-data/:etap/:u/:rowCount', (req, res) => {
-  const Etap = req.params.etap;
+// Основний API ендпоінт
+app.get('/api/table-data/:etap/:u/:rowCount', async (req, res) => {
+  const Etap = req.params.etap; // Назва листа (Sheet Name)
   const U = req.params.u;
-  const rowCount = parseInt(req.params.rowCount)+2;
-  
-  // Determine column based on age group
-  let columns = 0;
-  
-  if (U == "Y") {
-    columns = "Y";
-  } else if (Etap == "SecScreen") {
+  // Додаємо +2, як у вашому оригінальному коді (заголовки тощо)
+  const requestedRows = parseInt(req.params.rowCount) + 2;
+
+  // Визначаємо зміщення колонки (offset)
+  let colOffset = 0;
+
+  if (U === "Y") {
+    // Спеціальний випадок для прапора
+    colOffset = "Y"; 
+  } else if (Etap === "SecScreen") {
     switch (U) {
-      case "14": columns = 0; break;
-      case "17A": columns = 5; break;
-      case "17B": columns = 10; break;
-      case "66": columns = 15; break;
+      case "14": colOffset = 0; break;
+      case "17A": colOffset = 5; break;
+      case "17B": colOffset = 10; break;
+      case "66": colOffset = 15; break;
+      default: colOffset = 0;
     }
-  } else if (Etap == "AfterFinal") {
+  } else if (Etap === "AfterFinal") {
     switch (U) {
-      case '17': columns = 0; break;
+      case '17': colOffset = 0; break;
+      default: colOffset = 0;
     }
   } else {
+    // Стандартні екрани
     switch (U) {
-      case "14": columns = 0; break;
-      case "17A": columns = 6; break;
-      case "17B": columns = 12; break;
-      case "66": columns = 18; break;
+      case "14": colOffset = 0; break;
+      case "17A": colOffset = 6; break;
+      case "17B": colOffset = 12; break;
+      case "66": colOffset = 18; break;
+      default: colOffset = 0;
     }
   }
-  
-  // If requesting the flag only
-  if (U == "Y") {
-    const flagValue = getExcelData(1, Etap, "", "Y");
+
+  // 1. Отримуємо дані з Google Sheets
+  // Завантажуємо весь лист (або великий шматок), щоб не робити 100 запитів
+  // Припустимо, що дані не ширші за колонку Z і не довші за 100 рядків (можна збільшити)
+  const range = `${Etap}!A1:AB${requestedRows + 10}`; 
+  const sheetData = await getSheetData(range);
+
+  if (!sheetData) {
+    return res.status(500).json({ error: "Failed to fetch data from Google Sheets" });
+  }
+
+  // 2. Логіка для "Y" (Flag)
+  if (U === "Y") {
+    // У вашому коді це було worksheet['AA1']. AA - це 26-й індекс (0-based)
+    const flagValue = getCellValue(sheetData, 0, 26); // Row 1 (index 0), Col AA (index 26)
     return res.json({ flag: flagValue });
   }
-  
-  // Prepare data for all requested rows
+
+  // 3. Формуємо масив рядків
   const tableData = [];
-  
-  for (let i = 1; i < rowCount; i++) {
-    const rowNum = i + 2; // Excel is 1-indexed
-    
-    // Get all required data for this row
+
+  // Цикл як у вашому коді, починаючи з i=1
+  for (let i = 1; i < requestedRows; i++) {
+    const rowNum = i + 2; 
+    const arrayRowIdx = rowNum - 1; // Google API повертає масив, де Row 1 = index 0.
+
+    // Перевірка, чи існує рядок в даних
+    if (arrayRowIdx >= sheetData.length) break;
+
     let rowData = {};
-    
-    if (Etap == "SecScreen") {
-      // Get the score and score2 values first
-      const scoreValue = getExcelData(rowNum, Etap, "c3", columns);
-      const score2Value = getExcelData(rowNum, Etap, "c4", columns);
+    const baseCol = colOffset; // Числовий індекс початкової колонки
+
+    /* Мапінг колонок з вашого коду (letters array):
+       c1 (col) -> baseCol
+       c2 (col+1) -> baseCol + 1
+       c3 (col+2) -> baseCol + 2
+       c4 (col+3) -> baseCol + 3
+       c5 (col+4) -> baseCol + 4
+       c6 (col+5) -> baseCol + 5
+       c7 (col+6) -> baseCol + 6
+    */
+
+    if (Etap === "SecScreen") {
+      const scoreVal = getCellValue(sheetData, arrayRowIdx, baseCol + 2); // c3
+      const score2Val = getCellValue(sheetData, arrayRowIdx, baseCol + 3); // c4
       
-      // Second screen has score and score2
+      const scoreInt = parseInt(scoreVal) || 0;
+      const score2Int = parseInt(score2Val) || 0;
+
       rowData = {
-        time: getExcelData(rowNum, Etap, "c1", columns),
-        team1: getExcelData(rowNum, Etap, "c2", columns),
-        team2: getExcelData(rowNum, Etap, "c5", columns),
-        score: scoreValue,
-        score2: score2Value,
-        field: (parseInt(scoreValue)*3)+parseInt(score2Value)
+        time: getCellValue(sheetData, arrayRowIdx, baseCol),     // c1
+        team1: getCellValue(sheetData, arrayRowIdx, baseCol + 1), // c2
+        team2: getCellValue(sheetData, arrayRowIdx, baseCol + 4), // c5
+        score: scoreVal,
+        score2: score2Val,
+        field: (scoreInt * 3) + score2Int
       };
-    } else if (Etap == "AfterFinal") {
-      // AfterFinal screen handling
+    } else if (Etap === "AfterFinal") {
+      const cellA = getCellValue(sheetData, arrayRowIdx, baseCol + 3); // c4
+      const cellB = getCellValue(sheetData, arrayRowIdx, baseCol + 4); // c5
+
       rowData = {
-        time: getExcelData(rowNum, Etap, "c1", columns),
-        team1: getExcelData(rowNum, Etap, "c2", columns),
-        team2: getExcelData(rowNum, Etap, "c4:c5", columns),
-        score: getExcelData(rowNum, Etap, "c3", columns),
-        field: getExcelData(rowNum, Etap, "c6", columns),
-        last: getExcelData(rowNum, Etap, "c7", columns)
+        time: getCellValue(sheetData, arrayRowIdx, baseCol),      // c1
+        team1: getCellValue(sheetData, arrayRowIdx, baseCol + 1),  // c2
+        team2: `${cellA} : ${cellB}`, // c4:c5 combined
+        score: getCellValue(sheetData, arrayRowIdx, baseCol + 2),  // c3
+        field: getCellValue(sheetData, arrayRowIdx, baseCol + 5),  // c6
+        last: getCellValue(sheetData, arrayRowIdx, baseCol + 6)    // c7
       };
     } else {
       // Regular screens
+      const cellScoreA = getCellValue(sheetData, arrayRowIdx, baseCol + 2); // c3
+      const cellScoreB = getCellValue(sheetData, arrayRowIdx, baseCol + 3); // c4
+
       rowData = {
-        time: getExcelData(rowNum, Etap, "c1", columns),
-        team1: getExcelData(rowNum, Etap, "c2", columns),
-        team2: getExcelData(rowNum, Etap, "c5", columns),
-        score: getExcelData(rowNum, Etap, "c3:c4", columns),
-        field: getExcelData(rowNum, Etap, "c6", columns)
+        time: getCellValue(sheetData, arrayRowIdx, baseCol),      // c1
+        team1: getCellValue(sheetData, arrayRowIdx, baseCol + 1),  // c2
+        team2: getCellValue(sheetData, arrayRowIdx, baseCol + 4),  // c5
+        score: `${cellScoreA} : ${cellScoreB}`, // c3:c4 combined
+        field: getCellValue(sheetData, arrayRowIdx, baseCol + 5)   // c6
       };
     }
     
     tableData.push(rowData);
   }
-  
+
   res.json({ rows: tableData });
 });
 
-// Serve the main HTML file
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
-});
+// Для локального запуску
+if (require.main === module) {
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+}
 
-app.listen(3000, () => {
-  console.log('Server running on http://localhost:3000');
-});
+module.exports = app;

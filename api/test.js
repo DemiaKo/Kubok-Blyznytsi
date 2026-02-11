@@ -7,11 +7,11 @@ require('dotenv').config();
 const app = express();
 app.use(cors());
 
-// Статичні файли (для локального запуску)
+// Статичні файли
 const publicPath = path.join(__dirname, '../public');
 app.use(express.static(publicPath));
 
-// Google Auth
+// Auth
 const auth = new google.auth.GoogleAuth({
   credentials: {
     client_email: process.env.GOOGLE_CLIENT_EMAIL,
@@ -23,7 +23,7 @@ const auth = new google.auth.GoogleAuth({
 const sheets = google.sheets({ version: 'v4', auth });
 const SPREADSHEET_ID = process.env.SPREADSHEET_ID;
 
-// Helper: Get raw data
+// Helper function
 async function getSheetData(range) {
   try {
     const response = await sheets.spreadsheets.values.get({
@@ -32,63 +32,49 @@ async function getSheetData(range) {
     });
     return response.data.values || [];
   } catch (error) {
-    console.error('Google Sheets API Error:', error);
+    console.error('API Error:', error);
     return null;
   }
 }
 
-// Helper: Get cell value safely
 function getVal(row, index) {
   return (row && row[index] !== undefined) ? row[index] : '';
 }
 
-// === НОВИЙ ОПТИМІЗОВАНИЙ ЕНДПОІНТ ===
 app.get('/api/view/:etap', async (req, res) => {
   const { etap } = req.params;
   
-  // 1. Завантажуємо ВЕСЬ лист одним запитом (A1:AC30)
-  // Беремо 30 рядків із запасом, щоб покрити всі таблиці
-  const rawData = await getSheetData(`${etap}!A1:AC30`);
+  // Ми робимо два запити паралельно:
+  // 1. Основні дані для поточної сторінки
+  // 2. Перевірка прапора "Y" ЗАВЖДИ з головного листа (BeforeFinal), 
+  //    щоб уникнути циклічних переадресацій.
+  
+  const dataPromise = getSheetData(`${etap}!A1:AC30`);
+  const flagPromise = getSheetData('BeforeFinal!AA1'); // Завжди беремо флаг звідси
+
+  const [rawData, flagData] = await Promise.all([dataPromise, flagPromise]);
   
   if (!rawData) return res.status(500).json({ error: "No data" });
 
-  // 2. Отримуємо прапор (Cell AA1 -> index 26)
-  const flag = getVal(rawData[0], 26);
+  // Отримуємо прапор з результату другого запиту
+  // flagData[0][0] - це клітинка AA1 з листа BeforeFinal
+  const flag = (flagData && flagData[0] && flagData[0][0]) ? flagData[0][0] : '';
 
-  // 3. Налаштування колонок для різних категорій
-  // Це замінює switch(U) з минулого коду
   let configs = {};
   
   if (etap === "BeforeFinal") {
-    configs = {
-      "14":  { offset: 0 },
-      "17A": { offset: 6 },
-      "17B": { offset: 12 },
-      "66":  { offset: 18 }
-    };
+    configs = { "14": { offset: 0 }, "17A": { offset: 6 }, "17B": { offset: 12 }, "66": { offset: 18 } };
   } else if (etap === "SecScreen") {
-    configs = {
-      "14":  { offset: 0 },
-      "17A": { offset: 5 },
-      "17B": { offset: 10 },
-      "66":  { offset: 15 }
-    };
+    configs = { "14": { offset: 0 }, "17A": { offset: 5 }, "17B": { offset: 10 }, "66": { offset: 15 } };
   } else if (etap === "AfterFinal") {
-    // Тут логіка з вашого старого коду, де зсув переважно 0
-    configs = {
-      "14": { offset: 0 },
-      "17": { offset: 0 },
-      "66": { offset: 0 }
-    };
+    configs = { "14": { offset: 0 }, "17": { offset: 0 }, "66": { offset: 0 } };
   }
 
   const responseData = {
-    flag: flag,
+    flag: flag, // Тепер це завжди правильний прапор
     tables: {}
   };
 
-  // 4. Проходимо по рядках і збираємо дані для всіх таблиць одразу
-  // Починаємо з index 2 (рядок 3), бо 0 і 1 це заголовки
   const maxRows = rawData.length;
   
   Object.keys(configs).forEach(key => {
@@ -96,21 +82,17 @@ app.get('/api/view/:etap', async (req, res) => {
     const offset = conf.offset;
     const rows = [];
 
+    // start from row 3 (index 2)
     for (let i = 2; i < maxRows; i++) {
       const row = rawData[i];
-      if (!row || row.length === 0) continue; // Skip empty rows logic if needed
-
-      // Перевіряємо, чи є час (перша колонка блоку), щоб не додавати пусті рядки
-      if (!getVal(row, offset)) continue;
+      if (!row || !getVal(row, offset)) continue;
 
       let rowObj = {};
-
       if (etap === "SecScreen") {
         const score1 = getVal(row, offset + 2);
         const score2 = getVal(row, offset + 3);
         const s1Int = parseInt(score1) || 0;
         const s2Int = parseInt(score2) || 0;
-
         rowObj = {
           time: getVal(row, offset),
           team1: getVal(row, offset + 1),
@@ -129,7 +111,6 @@ app.get('/api/view/:etap', async (req, res) => {
           last: getVal(row, offset + 6)
         };
       } else {
-        // BeforeFinal (Standard)
         rowObj = {
           time: getVal(row, offset),
           team1: getVal(row, offset + 1),
@@ -146,7 +127,6 @@ app.get('/api/view/:etap', async (req, res) => {
   res.json(responseData);
 });
 
-// Start logic
 if (require.main === module) {
   const PORT = process.env.PORT || 3000;
   app.listen(PORT, () => console.log(`Server ready on ${PORT}`));

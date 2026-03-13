@@ -195,41 +195,33 @@ tr:hover {
     }
 }
 
-/* --- ІДЕАЛЬНИЙ ФІКС ДЛЯ 3-Х ТАБЛИЦЬ У РЯД (AFTERFINAL) --- */
+/* --- ПРОСТОРІ ТАБЛИЦІ В СТИЛІ 2SCR (AFTERFINAL) --- */
 
 .match-schedule {
-    /* Дозволяємо браузеру самому ідеально розподіляти ширину колонок під текст */
-    table-layout: auto !important; 
     width: 100%;
+    table-layout: fixed; /* Фіксуємо ширину, щоб таблиця не "скакала" */
+    border-collapse: collapse;
 }
 
 .match-schedule th, .match-schedule td {
-    /* НАЙГОЛОВНІШЕ: Дозволяємо тексту переноситися на новий рядок і не обрізатися! */
-    white-space: normal !important; 
-    overflow: visible !important;
-    text-overflow: clip !important;
+    text-align: center;
+    padding: 12px 5px !important; /* Більше простору у висоту */
+    white-space: nowrap !important; /* Забороняємо тексту переноситися як попало */
+    overflow: hidden;
+    text-overflow: ellipsis; /* Якщо щось не влазить - будуть три крапки */
+}
+
+/* Дозволяємо перенос тексту ТІЛЬКИ для назв команд, якщо вони дуже довгі */
+table th:nth-child(3), table td:nth-child(3),
+table th:nth-child(5), table td:nth-child(5) {
+    white-space: normal !important;
     line-height: 1.2 !important;
-    word-wrap: break-word !important;
 }
 
-.match-schedule th {
-    /* Трохи менший шрифт для заголовків */
-    font-size: 16px !important;
-    padding: 8px 4px !important;
-}
-
-.match-schedule td {
-    /* Оптимальний шрифт для самих даних */
-    font-size: 18px !important;
-    padding: 8px 4px !important;
-}
-
-/* Задаємо мінімальні розміри для цифр, щоб вони не стискалися */
-table th:nth-child(4), table td:nth-child(4) { 
-    min-width: 55px; 
-    font-weight: bold; 
-} /* Рахунок */
-
-table th:nth-child(6), table td:nth-child(6) { 
-    min-width: 45px; 
-} /* Поле */
+/* Ідеальні пропорції для 6-ти колонок (тепер їм є де розгулятися) */
+table th:nth-child(1), table td:nth-child(1) { width: 16% !important; } /* Час */
+table th:nth-child(2), table td:nth-child(2) { width: 16% !important; } /* Етап */
+table th:nth-child(3), table td:nth-child(3) { width: 24% !important; } /* Команда 1 */
+table th:nth-child(4), table td:nth-child(4) { width: 10% !important; font-weight: bold; font-size: 22px !important;} /* Рахунок */
+table th:nth-child(5), table td:nth-child(5) { width: 24% !important; } /* Команда 2 */
+table th:nth-child(6), table td:nth-child(6) { width: 10% !important; } /* Поле */

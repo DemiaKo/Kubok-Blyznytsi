@@ -3,19 +3,24 @@ function populateSecTable(tableId, rowsData) {
   if (!table || !rowsData) return;
   
   const tbody = table.getElementsByTagName('tbody')[0];
+  
+  // Автоматично додаємо рядки, якщо команд більше (щоб не з'їдало 6-ту команду)
+  while (tbody.rows.length < rowsData.length) {
+    const newRow = tbody.insertRow();
+    for (let i = 0; i < 7; i++) newRow.insertCell();
+  }
+
   const tableRows = tbody.rows;
   
   rowsData.forEach((data, index) => {
-    if (index < tableRows.length) {
-      const cells = tableRows[index].cells;
-      // У SecScreen інша структура колонок
-      cells[1].textContent = data.time;
-      cells[2].textContent = data.team1;
-      cells[3].textContent = data.score;
-      cells[4].textContent = data.score2;
-      cells[5].textContent = data.team2;
-      cells[6].textContent = data.field;
-    }
+    const cells = tableRows[index].cells;
+    cells[0].textContent = index + 1;  // Автоматичний номер місця
+    cells[1].textContent = data.time;  // Назва команди
+    cells[2].textContent = data.team1; // Ігри
+    cells[3].textContent = data.score; // Перемоги
+    cells[4].textContent = data.score2; // Нічиї
+    cells[5].textContent = data.team2; // Поразки
+    cells[6].textContent = data.field; // Очки
   });
 }
 

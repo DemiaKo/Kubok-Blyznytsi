@@ -162,3 +162,17 @@ tr:hover {
         padding: 10px;
     }
 }
+
+table th:nth-child(1), table td:nth-child(1) { width: 12%; } /* Час */
+table th:nth-child(2), table td:nth-child(2) { 
+  width: 32%; 
+  white-space: normal; /* Дозволяє перенос тексту */
+  line-height: 1.1; 
+} /* Команда 1 */
+table th:nth-child(3), table td:nth-child(3) { width: 12%; font-weight: bold; } /* Рахунок */
+table th:nth-child(4), table td:nth-child(4) { 
+  width: 32%; 
+  white-space: normal; /* Дозволяє перенос тексту */
+  line-height: 1.1; 
+} /* Команда 2 */
+table th:nth-child(5), table td:nth-child(5) { width: 12%; } /* Поле */

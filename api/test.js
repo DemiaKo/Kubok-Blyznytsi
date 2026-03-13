@@ -69,85 +69,94 @@ app.get('/api/view/:etap', async (req, res) => {
 
     // === АВТОМАТИЧНА ГЕНЕРАЦІЯ ТУРНІРНОЇ ТАБЛИЦІ (SecScreen) ===
     if (etap === 'SecScreen') {
-      const matchConfigs = {
-        "14A": { offset: 0 }, "14B": { offset: 6 }, "17": { offset: 12 }, "66": { offset: 18 }
+      const allStats = {};
+      const groupTeams = { "14": new Set(), "17A": new Set(), "17B": new Set(), "66": new Set() };
+      
+      const registerTeam = (t) => {
+        if (t && !allStats[t]) allStats[t] = { g: 0, w: 0, d: 0, l: 0, gs: 0, gc: 0 };
       };
 
-      const processRowStats = (row, offset, stats, isAfterFinal) => {
-        if (!row) return;
-        let team1 = getVal(row, offset + 1).trim();
-        let team2, score1, score2;
-
-        if (isAfterFinal) {
-          score1 = getVal(row, offset + 2).trim();
-          let col3 = getVal(row, offset + 3).trim();
-          let col4 = getVal(row, offset + 4).trim();
-          if (!isNaN(parseInt(col3)) && isNaN(parseInt(col4))) {
-            score2 = col3; team2 = col4;
-          } else {
-            team2 = col3; score2 = col4;
-          }
-        } else {
-          score1 = getVal(row, offset + 2).trim();
-          score2 = getVal(row, offset + 3).trim();
-          team2 = getVal(row, offset + 4).trim();
-        }
-
-        if (!team1 && !team2) return;
-
-        if (team1 && !stats[team1]) stats[team1] = { g: 0, w: 0, d: 0, l: 0, gs: 0, gc: 0 };
-        if (team2 && !stats[team2]) stats[team2] = { g: 0, w: 0, d: 0, l: 0, gs: 0, gc: 0 };
-
-        if (team1 && team2 && score1 !== '' && score2 !== '') {
-          const s1 = parseInt(score1.replace(/[^\d]/g, ''));
-          const s2 = parseInt(score2.replace(/[^\d]/g, ''));
-
-          if (!isNaN(s1) && !isNaN(s2)) {
-            stats[team1].g++; stats[team2].g++;
-            stats[team1].gs += s1; stats[team1].gc += s2;
-            stats[team2].gs += s2; stats[team2].gc += s1;
-
-            if (s1 > s2) { stats[team1].w++; stats[team2].l++; }
-            else if (s1 < s2) { stats[team2].w++; stats[team1].l++; }
-            else { stats[team1].d++; stats[team2].d++; }
-          }
-        }
+      const addMatchStats = (t1, t2, s1, s2) => {
+        if (!t1 || !t2 || isNaN(s1) || isNaN(s2)) return;
+        registerTeam(t1); registerTeam(t2);
+        allStats[t1].g++; allStats[t2].g++;
+        allStats[t1].gs += s1; allStats[t1].gc += s2;
+        allStats[t2].gs += s2; allStats[t2].gc += s1;
+        if (s1 > s2) { allStats[t1].w++; allStats[t2].l++; }
+        else if (s1 < s2) { allStats[t2].w++; allStats[t1].l++; }
+        else { allStats[t1].d++; allStats[t2].d++; }
       };
 
-      Object.keys(matchConfigs).forEach(key => {
-        const offset = matchConfigs[key].offset;
-        const stats = {}; 
+      // 1. Читаємо матчі з BeforeFinal (та формуємо список команд для кожної групи)
+      const bfOffsets = { "14": 0, "17A": 6, "17B": 12, "66": 18 };
+      for (let i = 2; i < beforeFinalData.length; i++) {
+        const row = beforeFinalData[i];
+        if (!row) continue;
+        Object.keys(bfOffsets).forEach(grp => {
+          const off = bfOffsets[grp];
+          let t1 = getVal(row, off + 1).trim();
+          let s1Str = getVal(row, off + 2).trim();
+          let s2Str = getVal(row, off + 3).trim();
+          let t2 = getVal(row, off + 4).trim();
+          
+          if (t1) { registerTeam(t1); groupTeams[grp].add(t1); }
+          if (t2) { registerTeam(t2); groupTeams[grp].add(t2); }
+          
+          if (t1 && t2 && s1Str !== '' && s2Str !== '') {
+            let s1 = parseInt(s1Str.replace(/[^\d]/g, ''));
+            let s2 = parseInt(s2Str.replace(/[^\d]/g, ''));
+            addMatchStats(t1, t2, s1, s2);
+          }
+        });
+      }
 
-        for (let i = 2; i < beforeFinalData.length; i++) processRowStats(beforeFinalData[i], offset, stats, false);
-        for (let i = 2; i < afterFinalData.length; i++) processRowStats(afterFinalData[i], offset, stats, true);
+      // 2. Читаємо матчі з AfterFinal (Тут лише 3 групи: U-14, U-17, U-66)
+      const afOffsets = [0, 6, 12];
+      for (let i = 2; i < afterFinalData.length; i++) {
+        const row = afterFinalData[i];
+        if (!row) continue;
+        afOffsets.forEach(off => {
+          let t1 = getVal(row, off + 1).trim();
+          let scoreStr = getVal(row, off + 2).trim(); // Рахунок в одній клітинці "2 : 1"
+          let t2 = getVal(row, off + 3).trim();
+          
+          if (t1 && t2 && scoreStr.includes(':')) {
+            const parts = scoreStr.split(':');
+            let s1 = parseInt(parts[0].replace(/[^\d]/g, ''));
+            let s2 = parseInt(parts[1].replace(/[^\d]/g, ''));
+            addMatchStats(t1, t2, s1, s2);
+          }
+        });
+      }
 
-        const standings = Object.keys(stats).map(teamName => {
-          const st = stats[teamName];
+      // 3. Віддаємо готові таблиці
+      Object.keys(bfOffsets).forEach(grp => {
+        const standings = Array.from(groupTeams[grp]).map(teamName => {
+          const st = allStats[teamName];
           return {
             time: teamName, team1: st.g, score: st.w, score2: st.d, team2: st.l,
             field: (st.w * 3) + st.d, goalDiff: st.gs - st.gc
           };
         });
-
         standings.sort((a, b) => {
           if (b.field !== a.field) return b.field - a.field;
           return b.goalDiff - a.goalDiff;
         });
-
-        responseData.tables[key] = standings;
+        responseData.tables[grp] = standings;
       });
 
     } else {
-      // === ЛОГІКА ДЛЯ СТАНДАРТНИХ ЕКРАНІВ (BeforeFinal / AfterFinal) ===
+      // === ЛОГІКА ДЛЯ СТАНДАРТНИХ ЕКРАНІВ ===
       let configs = {};
       if (etap === "BeforeFinal") {
-        configs = { "14A": { offset: 0 }, "14B": { offset: 6 }, "17": { offset: 12 }, "66": { offset: 18 } };
+        configs = { "14": { offset: 0 }, "17A": { offset: 6 }, "17B": { offset: 12 }, "66": { offset: 18 } };
       } else if (etap === "AfterFinal") {
-        configs = { "14": { offset: 0 }, "17": { offset: 0 }, "66": { offset: 0 } };
+        // Оновлено: Нова структура для фіналів
+        configs = { "14": { offset: 0 }, "17": { offset: 6 }, "66": { offset: 12 } };
       }
 
       const rawData = (etap === 'AfterFinal') ? afterFinalData : beforeFinalData;
-      const maxRows = rawData.length; // ОСЬ ЦЕЙ РЯДОК БУВ ПРОПУЩЕНИЙ (Фікс проблем 1 і 3)
+      const maxRows = rawData.length;
 
       Object.keys(configs).forEach(key => {
         const conf = configs[key];
@@ -160,13 +169,13 @@ app.get('/api/view/:etap', async (req, res) => {
 
           let rowObj = {};
           if (etap === "AfterFinal") {
-             rowObj = {
+            // Оновлено: Читаємо рівно 5 стовпців для AfterFinal
+            rowObj = {
               time: getVal(row, offset),
               team1: getVal(row, offset + 1),
-              score: getVal(row, offset + 2),
-              team2: `${getVal(row, offset + 3)} : ${getVal(row, offset + 4)}`,
-              field: getVal(row, offset + 5),
-              last: getVal(row, offset + 6)
+              score: getVal(row, offset + 2), 
+              team2: getVal(row, offset + 3),
+              field: getVal(row, offset + 4)
             };
           } else {
             rowObj = {

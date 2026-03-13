@@ -70,7 +70,7 @@ app.get('/api/view/:etap', async (req, res) => {
     // === АВТОМАТИЧНА ГЕНЕРАЦІЯ ТУРНІРНОЇ ТАБЛИЦІ (SecScreen) ===
     if (etap === 'SecScreen') {
       const matchConfigs = {
-        "14": { offset: 0 }, "17A": { offset: 6 }, "17B": { offset: 12 }, "66": { offset: 18 }
+        "14A": { offset: 0 }, "14B": { offset: 6 }, "17": { offset: 12 }, "66": { offset: 18 }
       };
 
       const processRowStats = (row, offset, stats, isAfterFinal) => {
@@ -141,7 +141,7 @@ app.get('/api/view/:etap', async (req, res) => {
       // === ЛОГІКА ДЛЯ СТАНДАРТНИХ ЕКРАНІВ (BeforeFinal / AfterFinal) ===
       let configs = {};
       if (etap === "BeforeFinal") {
-        configs = { "14": { offset: 0 }, "17A": { offset: 6 }, "17B": { offset: 12 }, "66": { offset: 18 } };
+        configs = { "14A": { offset: 0 }, "14B": { offset: 6 }, "17": { offset: 12 }, "66": { offset: 18 } };
       } else if (etap === "AfterFinal") {
         configs = { "14": { offset: 0 }, "17": { offset: 0 }, "66": { offset: 0 } };
       }

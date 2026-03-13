@@ -34,9 +34,9 @@ document.addEventListener('DOMContentLoaded', function() {
       }
 
       // 2. Заповнення всіх таблиць одразу
-      populateTable('U-14', data.tables['14']);
-      populateTable('U-17-A', data.tables['17A']);
-      populateTable('U-17-B', data.tables['17B']);
+      populateTable('U-14-A', data.tables['14A']);
+      populateTable('U-14-B', data.tables['14B']);
+      populateTable('U-17', data.tables['17']);
       populateTable('U-66', data.tables['66']);
       
       console.log('All data loaded via single batch request');

@@ -88,7 +88,7 @@ app.get('/api/view/:etap', async (req, res) => {
       };
 
       // 1. Читаємо матчі з BeforeFinal (та формуємо список команд для кожної групи)
-      const bfOffsets = { "14": 0, "17A": 6, "17B": 12, "66": 18 };
+      const bfOffsets = { "14A": 0, "14B": 6, "17": 12, "66": 18 };
       for (let i = 2; i < beforeFinalData.length; i++) {
         const row = beforeFinalData[i];
         if (!row) continue;

@@ -110,20 +110,20 @@ app.get('/api/view/:etap', async (req, res) => {
         });
       }
 
-      // 2. Читаємо матчі з AfterFinal (Тут лише 3 групи: U-14, U-17, U-66)
-      const afOffsets = [0, 6, 12];
+      // 2. Читаємо AfterFinal (Зміщення: 0, 7, 14, бо кожна група займає 7 колонок)
+      const afOffsets = [0, 7, 14];
       for (let i = 2; i < afterFinalData.length; i++) {
         const row = afterFinalData[i];
         if (!row) continue;
         afOffsets.forEach(off => {
-          let t1 = getVal(row, off + 1).trim();
-          let scoreStr = getVal(row, off + 2).trim(); // Рахунок в одній клітинці "2 : 1"
-          let t2 = getVal(row, off + 3).trim();
+          let t1 = safeGet(row, off + 2); // Команда 1
+          let s1Str = safeGet(row, off + 3); // Рахунок 1
+          let s2Str = safeGet(row, off + 4); // Рахунок 2
+          let t2 = safeGet(row, off + 5); // Команда 2
           
-          if (t1 && t2 && scoreStr.includes(':')) {
-            const parts = scoreStr.split(':');
-            let s1 = parseInt(parts[0].replace(/[^\d]/g, ''));
-            let s2 = parseInt(parts[1].replace(/[^\d]/g, ''));
+          if (t1 && t2 && s1Str !== '' && s2Str !== '') {
+            let s1 = parseInt(s1Str.replace(/[^\d]/g, ''));
+            let s2 = parseInt(s2Str.replace(/[^\d]/g, ''));
             addMatchStats(t1, t2, s1, s2);
           }
         });
@@ -151,8 +151,8 @@ app.get('/api/view/:etap', async (req, res) => {
       if (etap === "BeforeFinal") {
         configs = { "14A": { offset: 0 }, "14B": { offset: 6 }, "17": { offset: 12 }, "66": { offset: 18 } };
       } else if (etap === "AfterFinal") {
-        // Оновлено: Нова структура для фіналів
-        configs = { "14": { offset: 0 }, "17": { offset: 6 }, "66": { offset: 12 } };
+        // Правильні зміщення для AfterFinal (0, 7, 14)
+        configs = { "14": { offset: 0 }, "17": { offset: 7 }, "66": { offset: 14 } };
       }
 
       const rawData = (etap === 'AfterFinal') ? afterFinalData : beforeFinalData;
@@ -169,21 +169,29 @@ app.get('/api/view/:etap', async (req, res) => {
 
           let rowObj = {};
           if (etap === "AfterFinal") {
-            // Оновлено: Читаємо рівно 5 стовпців для AfterFinal
+            // Перевіряємо команду 1 (offset + 2)
+            if (!row || !safeGet(row, offset + 2)) continue;
+
             rowObj = {
-              time: getVal(row, offset),
-              team1: getVal(row, offset + 1),
-              score: getVal(row, offset + 2), 
-              team2: getVal(row, offset + 3),
-              field: getVal(row, offset + 4)
+              // Я виводжу "Етап" (offset + 1), напр. "Півфінал 1". 
+              // Якщо ви хочете, щоб там був час (напр. "16:25"), просто замініть `offset + 1` на `offset`
+              time: safeGet(row, offset + 1), 
+              team1: safeGet(row, offset + 2),
+              // Склеюємо два стовпці результату в один для відображення "2 : 1"
+              score: `${safeGet(row, offset + 3)} : ${safeGet(row, offset + 4)}`, 
+              team2: safeGet(row, offset + 5),
+              field: safeGet(row, offset + 6) // Поле беремо з колонок G, N, U
             };
           } else {
+            // В BeforeFinal перевіряємо команду 1 (offset + 1)
+            if (!row || !safeGet(row, offset + 1)) continue;
+
             rowObj = {
-              time: getVal(row, offset),
-              team1: getVal(row, offset + 1),
-              score: `${getVal(row, offset + 2)} : ${getVal(row, offset + 3)}`,
-              team2: getVal(row, offset + 4),
-              field: getVal(row, offset + 5)
+              time: safeGet(row, offset),
+              team1: safeGet(row, offset + 1),
+              score: `${safeGet(row, offset + 2)} : ${safeGet(row, offset + 3)}`,
+              team2: safeGet(row, offset + 4),
+              field: safeGet(row, offset + 5)
             };
           }
           rows.push(rowObj);

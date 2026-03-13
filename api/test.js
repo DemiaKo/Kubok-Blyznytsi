@@ -70,7 +70,7 @@ app.get('/api/view/:etap', async (req, res) => {
     // === АВТОМАТИЧНА ГЕНЕРАЦІЯ ТУРНІРНОЇ ТАБЛИЦІ (SecScreen) ===
     if (etap === 'SecScreen') {
       const allStats = {};
-      const groupTeams = { "14": new Set(), "17A": new Set(), "17B": new Set(), "66": new Set() };
+      const groupTeams = { "14A": new Set(), "14B": new Set(), "17": new Set(), "66": new Set() };
       
       const registerTeam = (t) => {
         if (t && !allStats[t]) allStats[t] = { g: 0, w: 0, d: 0, l: 0, gs: 0, gc: 0 };
@@ -149,7 +149,7 @@ app.get('/api/view/:etap', async (req, res) => {
       // === ЛОГІКА ДЛЯ СТАНДАРТНИХ ЕКРАНІВ ===
       let configs = {};
       if (etap === "BeforeFinal") {
-        configs = { "14": { offset: 0 }, "17A": { offset: 6 }, "17B": { offset: 12 }, "66": { offset: 18 } };
+        configs = { "14A": { offset: 0 }, "14B": { offset: 6 }, "17": { offset: 12 }, "66": { offset: 18 } };
       } else if (etap === "AfterFinal") {
         // Оновлено: Нова структура для фіналів
         configs = { "14": { offset: 0 }, "17": { offset: 6 }, "66": { offset: 12 } };

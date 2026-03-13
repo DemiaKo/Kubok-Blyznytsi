@@ -218,10 +218,10 @@ table th:nth-child(5), table td:nth-child(5) {
     line-height: 1.2 !important;
 }
 
-/* Ідеальні пропорції для 6-ти колонок (тепер їм є де розгулятися) */
-table th:nth-child(1), table td:nth-child(1) { width: 16% !important; } /* Час */
-table th:nth-child(2), table td:nth-child(2) { width: 16% !important; } /* Етап */
-table th:nth-child(3), table td:nth-child(3) { width: 24% !important; } /* Команда 1 */
-table th:nth-child(4), table td:nth-child(4) { width: 10% !important; font-weight: bold; font-size: 22px !important;} /* Рахунок */
-table th:nth-child(5), table td:nth-child(5) { width: 24% !important; } /* Команда 2 */
+/* Ідеальні пропорції для 6-ти колонок (Рахунок збільшено) */
+table th:nth-child(1), table td:nth-child(1) { width: 15% !important; } /* Час */
+table th:nth-child(2), table td:nth-child(2) { width: 15% !important; } /* Етап */
+table th:nth-child(3), table td:nth-child(3) { width: 23% !important; } /* Команда 1 */
+table th:nth-child(4), table td:nth-child(4) { width: 14% !important; font-weight: bold; font-size: 22px !important;} /* Рахунок */
+table th:nth-child(5), table td:nth-child(5) { width: 23% !important; } /* Команда 2 */
 table th:nth-child(6), table td:nth-child(6) { width: 10% !important; } /* Поле */

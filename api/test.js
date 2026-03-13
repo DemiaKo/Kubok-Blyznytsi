@@ -169,11 +169,12 @@ app.get('/api/view/:etap', async (req, res) => {
             if (!row || !safeGet(row, offset + 2)) continue;
             
             rowObj = {
-              time: safeGet(row, offset + 1), // Етап (напр. "Півфінал")
-              team1: safeGet(row, offset + 2),
-              score: `${safeGet(row, offset + 3)} : ${safeGet(row, offset + 4)}`, 
-              team2: safeGet(row, offset + 5),
-              field: safeGet(row, offset + 6)
+              time: safeGet(row, offset),       // 1. Час
+              stage: safeGet(row, offset + 1),  // 2. Етап
+              team1: safeGet(row, offset + 2),  // 3. Команда 1
+              score: `${safeGet(row, offset + 3)} : ${safeGet(row, offset + 4)}`, // 4. Рахунок
+              team2: safeGet(row, offset + 5),  // 5. Команда 2
+              field: safeGet(row, offset + 6)   // 6. Поле
             };
           } else {
             // В BeforeFinal перевіряємо Команду 1 (це зсув + 1)

@@ -8,13 +8,12 @@ function populateTable(tableId, rowsData) {
   rowsData.forEach((data, index) => {
     if (index < tableRows.length) {
       const cells = tableRows[index].cells;
-      cells[0].textContent = data.time;
-      cells[1].textContent = data.team1;
-      cells[2].textContent = data.score;
-      cells[3].textContent = data.team2;
-      cells[4].textContent = data.field;
-      // В AfterFinal є додаткова колонка Last
-      if (cells[5]) cells[5].textContent = data.last;
+      cells[0].textContent = data.time;   // Час
+      cells[1].textContent = data.stage;  // Етап (НОВА КОЛОНКА)
+      cells[2].textContent = data.team1;  // Команда 1
+      cells[3].textContent = data.score;  // Рахунок
+      cells[4].textContent = data.team2;  // Команда 2
+      cells[5].textContent = data.field;  // Поле
     }
   });
 }

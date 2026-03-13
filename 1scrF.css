@@ -195,33 +195,37 @@ tr:hover {
     }
 }
 
-/* --- ПРОСТОРІ ТАБЛИЦІ В СТИЛІ 2SCR (AFTERFINAL) --- */
+/* --- ІДЕАЛЬНИЙ ПРОСТОРІЙ ДИЗАЙН В СТИЛІ 2SCR (AFTERFINAL) --- */
 
 .match-schedule {
     width: 100%;
-    table-layout: fixed; /* Фіксуємо ширину, щоб таблиця не "скакала" */
+    table-layout: fixed;
     border-collapse: collapse;
 }
 
 .match-schedule th, .match-schedule td {
     text-align: center;
-    padding: 12px 5px !important; /* Більше простору у висоту */
-    white-space: nowrap !important; /* Забороняємо тексту переноситися як попало */
-    overflow: hidden;
-    text-overflow: ellipsis; /* Якщо щось не влазить - будуть три крапки */
+    padding: 12px 5px !important;
+    white-space: nowrap !important;
+    
+    /* НАЙГОЛОВНІШЕ: вимикаємо три крапки для цифр і часу! 
+       Тепер вони завжди відображатимуться повністю */
+    overflow: visible !important; 
 }
 
-/* Дозволяємо перенос тексту ТІЛЬКИ для назв команд, якщо вони дуже довгі */
+/* Дозволяємо ТІЛЬКИ назвам команд переноситися на новий рядок */
 table th:nth-child(3), table td:nth-child(3),
 table th:nth-child(5), table td:nth-child(5) {
     white-space: normal !important;
     line-height: 1.2 !important;
+    overflow: hidden !important; 
+    text-overflow: ellipsis;
 }
 
-/* Ідеальні пропорції для 6-ти колонок (Рахунок збільшено) */
-table th:nth-child(1), table td:nth-child(1) { width: 15% !important; } /* Час */
-table th:nth-child(2), table td:nth-child(2) { width: 15% !important; } /* Етап */
-table th:nth-child(3), table td:nth-child(3) { width: 23% !important; } /* Команда 1 */
-table th:nth-child(4), table td:nth-child(4) { width: 14% !important; font-weight: bold; font-size: 22px !important;} /* Рахунок */
-table th:nth-child(5), table td:nth-child(5) { width: 23% !important; } /* Команда 2 */
+/* Точні пропорції, де "Час" отримав максимум місця */
+table th:nth-child(1), table td:nth-child(1) { width: 19% !important; } /* Час (ніколи не обріжеться) */
+table th:nth-child(2), table td:nth-child(2) { width: 14% !important; } /* Етап */
+table th:nth-child(3), table td:nth-child(3) { width: 22% !important; } /* Команда 1 */
+table th:nth-child(4), table td:nth-child(4) { width: 13% !important; font-weight: bold; font-size: 22px !important;} /* Рахунок */
+table th:nth-child(5), table td:nth-child(5) { width: 22% !important; } /* Команда 2 */
 table th:nth-child(6), table td:nth-child(6) { width: 10% !important; } /* Поле */

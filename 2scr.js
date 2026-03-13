@@ -25,9 +25,9 @@ document.addEventListener('DOMContentLoaded', function() {
   fetch('/api/view/SecScreen')
     .then(res => res.json())
     .then(data => {
-      populateSecTable('U-14', data.tables['14']);
-      populateSecTable('U-17-A', data.tables['17A']);
-      populateSecTable('U-17-B', data.tables['17B']);
+      populateSecTable('U-14-A', data.tables['14A']);
+      populateSecTable('U-14-B', data.tables['14B']);
+      populateSecTable('U-17', data.tables['17']);
       populateSecTable('U-66', data.tables['66']);
     })
     .catch(err => console.error(err));

@@ -70,6 +70,7 @@ app.get('/api/view/:etap', async (req, res) => {
     // === АВТОМАТИЧНА ГЕНЕРАЦІЯ ТУРНІРНОЇ ТАБЛИЦІ (SecScreen) ===
     if (etap === 'SecScreen') {
       const allStats = {};
+      // ПРАВИЛЬНІ ГРУПИ ТУТ: дві 14, одна 17, одна 66
       const groupTeams = { "14A": new Set(), "14B": new Set(), "17": new Set(), "66": new Set() };
       
       const registerTeam = (t) => {
@@ -87,17 +88,17 @@ app.get('/api/view/:etap', async (req, res) => {
         else { allStats[t1].d++; allStats[t2].d++; }
       };
 
-      // 1. Читаємо матчі з BeforeFinal (та формуємо список команд для кожної групи)
       const bfOffsets = { "14A": 0, "14B": 6, "17": 12, "66": 18 };
+      
+      // Читаємо BeforeFinal
       for (let i = 2; i < beforeFinalData.length; i++) {
         const row = beforeFinalData[i];
-        if (!row) continue;
         Object.keys(bfOffsets).forEach(grp => {
           const off = bfOffsets[grp];
-          let t1 = getVal(row, off + 1).trim();
-          let s1Str = getVal(row, off + 2).trim();
-          let s2Str = getVal(row, off + 3).trim();
-          let t2 = getVal(row, off + 4).trim();
+          let t1 = safeGet(row, off + 1);
+          let s1Str = safeGet(row, off + 2);
+          let s2Str = safeGet(row, off + 3);
+          let t2 = safeGet(row, off + 4);
           
           if (t1) { registerTeam(t1); groupTeams[grp].add(t1); }
           if (t2) { registerTeam(t2); groupTeams[grp].add(t2); }
@@ -110,16 +111,15 @@ app.get('/api/view/:etap', async (req, res) => {
         });
       }
 
-      // 2. Читаємо AfterFinal (Зміщення: 0, 7, 14, бо кожна група займає 7 колонок)
+      // Читаємо AfterFinal (0, 7, 14)
       const afOffsets = [0, 7, 14];
       for (let i = 2; i < afterFinalData.length; i++) {
         const row = afterFinalData[i];
-        if (!row) continue;
         afOffsets.forEach(off => {
-          let t1 = safeGet(row, off + 2); // Команда 1
-          let s1Str = safeGet(row, off + 3); // Рахунок 1
-          let s2Str = safeGet(row, off + 4); // Рахунок 2
-          let t2 = safeGet(row, off + 5); // Команда 2
+          let t1 = safeGet(row, off + 2);
+          let s1Str = safeGet(row, off + 3);
+          let s2Str = safeGet(row, off + 4);
+          let t2 = safeGet(row, off + 5);
           
           if (t1 && t2 && s1Str !== '' && s2Str !== '') {
             let s1 = parseInt(s1Str.replace(/[^\d]/g, ''));
@@ -129,7 +129,6 @@ app.get('/api/view/:etap', async (req, res) => {
         });
       }
 
-      // 3. Віддаємо готові таблиці
       Object.keys(bfOffsets).forEach(grp => {
         const standings = Array.from(groupTeams[grp]).map(teamName => {
           const st = allStats[teamName];
@@ -151,7 +150,6 @@ app.get('/api/view/:etap', async (req, res) => {
       if (etap === "BeforeFinal") {
         configs = { "14A": { offset: 0 }, "14B": { offset: 6 }, "17": { offset: 12 }, "66": { offset: 18 } };
       } else if (etap === "AfterFinal") {
-        // Правильні зміщення для AfterFinal (0, 7, 14)
         configs = { "14": { offset: 0 }, "17": { offset: 7 }, "66": { offset: 14 } };
       }
 
@@ -165,27 +163,19 @@ app.get('/api/view/:etap', async (req, res) => {
 
         for (let i = 2; i < maxRows; i++) {
           const row = rawData[i];
-          if (!row || !getVal(row, offset)) continue;
-
           let rowObj = {};
-          if (etap === "AfterFinal") {
-            // Перевіряємо команду 1 (offset + 2)
-            if (!row || !safeGet(row, offset + 2)) continue;
 
+          if (etap === "AfterFinal") {
+            if (!row || !safeGet(row, offset + 2)) continue;
             rowObj = {
-              // Я виводжу "Етап" (offset + 1), напр. "Півфінал 1". 
-              // Якщо ви хочете, щоб там був час (напр. "16:25"), просто замініть `offset + 1` на `offset`
-              time: safeGet(row, offset + 1), 
+              time: safeGet(row, offset + 1), // Етап
               team1: safeGet(row, offset + 2),
-              // Склеюємо два стовпці результату в один для відображення "2 : 1"
               score: `${safeGet(row, offset + 3)} : ${safeGet(row, offset + 4)}`, 
               team2: safeGet(row, offset + 5),
-              field: safeGet(row, offset + 6) // Поле беремо з колонок G, N, U
+              field: safeGet(row, offset + 6)
             };
           } else {
-            // В BeforeFinal перевіряємо команду 1 (offset + 1)
             if (!row || !safeGet(row, offset + 1)) continue;
-
             rowObj = {
               time: safeGet(row, offset),
               team1: safeGet(row, offset + 1),

@@ -7,11 +7,11 @@ require('dotenv').config();
 const app = express();
 app.use(cors());
 
-// Статичні файли
+// Статичні файли (для локального тестування)
 const publicPath = path.join(__dirname, '../public');
 app.use(express.static(publicPath));
 
-// Auth
+// Авторизація Google
 const auth = new google.auth.GoogleAuth({
   credentials: {
     client_email: process.env.GOOGLE_CLIENT_EMAIL,
@@ -23,7 +23,7 @@ const auth = new google.auth.GoogleAuth({
 const sheets = google.sheets({ version: 'v4', auth });
 const SPREADSHEET_ID = process.env.SPREADSHEET_ID;
 
-// Helper function
+// Функція для завантаження даних
 async function getSheetData(range) {
   try {
     const response = await sheets.spreadsheets.values.get({
@@ -32,24 +32,23 @@ async function getSheetData(range) {
     });
     return response.data.values || [];
   } catch (error) {
-    console.error('API Error:', error);
+    console.error(`API Error for ${range}:`, error.message);
     return null;
   }
 }
 
-function getVal(row, index) {
-  return (row && row[index] !== undefined) ? row[index] : '';
+// БЕЗПЕЧНА ФУНКЦІЯ: захищає сервер від падіння, якщо клітинка пуста
+function safeGet(row, idx) {
+  if (!row || row[idx] === undefined || row[idx] === null) return '';
+  return String(row[idx]).trim();
 }
 
 app.get('/api/view/:etap', async (req, res) => {
   const { etap } = req.params;
   
   try {
-    // ОПТИМІЗАЦІЯ: Робимо мінімум запитів. 
-    // Прапор AA1 вже входить у діапазон BeforeFinal!A1:AC50, тому окремо його не тягнемо.
+    // 1. Завантажуємо дані
     const promises = [ getSheetData('BeforeFinal!A1:AC50') ];
-    
-    // Якщо потрібна турнірка або фінали - дотягуємо AfterFinal
     if (etap === 'SecScreen' || etap === 'AfterFinal') {
       promises.push(getSheetData('AfterFinal!A1:AC50'));
     }
@@ -58,19 +57,18 @@ app.get('/api/view/:etap', async (req, res) => {
     const beforeFinalData = results[0] || [];
     const afterFinalData = results[1] || []; 
     
-    if (!beforeFinalData.length) return res.status(500).json({ error: "No data" });
+    if (!beforeFinalData.length) {
+        return res.status(500).json({ error: "No data found in BeforeFinal" });
+    }
 
-    // Витягуємо прапор (це 1-й рядок, 27-ма колонка, індекси 0 і 26). 
-    // trim() рятує, якщо хтось випадково поставив пробіл: "Y "
-    const rawFlag = getVal(beforeFinalData[0], 26);
-    const flag = (typeof rawFlag === 'string') ? rawFlag.trim() : '';
-    
+    // Отримуємо прапор Y
+    const flag = safeGet(beforeFinalData[0], 26);
     const responseData = { flag: flag, tables: {} };
 
     // === АВТОМАТИЧНА ГЕНЕРАЦІЯ ТУРНІРНОЇ ТАБЛИЦІ (SecScreen) ===
     if (etap === 'SecScreen') {
       const allStats = {};
-      // ПРАВИЛЬНІ ГРУПИ ТУТ: дві 14, одна 17, одна 66
+      // ПРАВИЛЬНІ ГРУПИ: дві 14, одна 17, одна 66
       const groupTeams = { "14A": new Set(), "14B": new Set(), "17": new Set(), "66": new Set() };
       
       const registerTeam = (t) => {
@@ -88,9 +86,9 @@ app.get('/api/view/:etap', async (req, res) => {
         else { allStats[t1].d++; allStats[t2].d++; }
       };
 
+      // Відступи для розкладу (дві 14, одна 17, одна 66)
       const bfOffsets = { "14A": 0, "14B": 6, "17": 12, "66": 18 };
       
-      // Читаємо BeforeFinal
       for (let i = 2; i < beforeFinalData.length; i++) {
         const row = beforeFinalData[i];
         Object.keys(bfOffsets).forEach(grp => {
@@ -111,15 +109,15 @@ app.get('/api/view/:etap', async (req, res) => {
         });
       }
 
-      // Читаємо AfterFinal (0, 7, 14)
+      // Відступи для AfterFinal (3 групи по 7 колонок: 0, 7, 14)
       const afOffsets = [0, 7, 14];
       for (let i = 2; i < afterFinalData.length; i++) {
         const row = afterFinalData[i];
         afOffsets.forEach(off => {
-          let t1 = safeGet(row, off + 2);
-          let s1Str = safeGet(row, off + 3);
-          let s2Str = safeGet(row, off + 4);
-          let t2 = safeGet(row, off + 5);
+          let t1 = safeGet(row, off + 2); // Команда 1
+          let s1Str = safeGet(row, off + 3); // Рахунок 1
+          let s2Str = safeGet(row, off + 4); // Рахунок 2
+          let t2 = safeGet(row, off + 5); // Команда 2
           
           if (t1 && t2 && s1Str !== '' && s2Str !== '') {
             let s1 = parseInt(s1Str.replace(/[^\d]/g, ''));
@@ -129,6 +127,7 @@ app.get('/api/view/:etap', async (req, res) => {
         });
       }
 
+      // Формуємо турнірку
       Object.keys(bfOffsets).forEach(grp => {
         const standings = Array.from(groupTeams[grp]).map(teamName => {
           const st = allStats[teamName];
@@ -166,18 +165,22 @@ app.get('/api/view/:etap', async (req, res) => {
           let rowObj = {};
 
           if (etap === "AfterFinal") {
+            // В AfterFinal перевіряємо Команду 1 (це зсув + 2)
             if (!row || !safeGet(row, offset + 2)) continue;
+            
             rowObj = {
-              time: safeGet(row, offset + 1), // Етап
+              time: safeGet(row, offset + 1), // Етап (напр. "Півфінал")
               team1: safeGet(row, offset + 2),
               score: `${safeGet(row, offset + 3)} : ${safeGet(row, offset + 4)}`, 
               team2: safeGet(row, offset + 5),
               field: safeGet(row, offset + 6)
             };
           } else {
+            // В BeforeFinal перевіряємо Команду 1 (це зсув + 1)
             if (!row || !safeGet(row, offset + 1)) continue;
+            
             rowObj = {
-              time: safeGet(row, offset),
+              time: safeGet(row, offset), // Час
               team1: safeGet(row, offset + 1),
               score: `${safeGet(row, offset + 2)} : ${safeGet(row, offset + 3)}`,
               team2: safeGet(row, offset + 4),
@@ -190,20 +193,19 @@ app.get('/api/view/:etap', async (req, res) => {
       });
     }
 
-    // КЕШУВАННЯ VERCEL (Фікс проблеми 2). Сервер запам'ятовує дані на 5 секунд.
-    // Наступний запит завантажиться моментально без звернення до Google!
+    // Кешування для миттєвого перемикання екранів
     res.setHeader('Cache-Control', 's-maxage=5, stale-while-revalidate');
-    
     res.json(responseData);
+    
   } catch (error) {
-    console.error("Server API Error:", error);
+    console.error("Server API Crash:", error);
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
 
 if (require.main === module) {
   const PORT = process.env.PORT || 3000;
-  app.listen(PORT, () => console.log(`Server ready on ${PORT}`));
+  app.listen(PORT, () => console.log(`Server is running on port ${PORT}`));
 }
 
 module.exports = app;
